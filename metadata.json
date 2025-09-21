@@ -1,0 +1,5 @@
+{
+  "name": "Pollar AI Collage Maker",
+  "description": "An application that uses Gemini AI to convert a set of user-provided images into a beautiful, dynamic collage. Users can add or remove images and export the final creation as a PNG or JPG.",
+  "requestFramePermissions": []
+}
