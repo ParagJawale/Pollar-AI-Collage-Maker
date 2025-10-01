@@ -17,6 +17,61 @@ const BACKGROUND_TABS: { id: Background['type'], label: string }[] = [
     { id: 'generated', label: 'Generate AI' }
 ];
 
+// Visual preview component for each template style
+const TemplatePreview: React.FC<{ style: CollageStyle }> = ({ style }) => {
+  const commonBox = "absolute rounded-sm";
+  const bg1 = "bg-slate-400";
+  const bg2 = "bg-slate-500";
+  const bg3 = "bg-slate-600";
+
+  return (
+    <div className="relative w-16 h-12 scale-90 flex-shrink-0 mb-1">
+      {(() => {
+        switch (style) {
+          case 'Dynamic':
+            return <>
+              <div className={`${commonBox} w-8 h-6 ${bg1} top-1 left-1 transform -rotate-12`}></div>
+              <div className={`${commonBox} w-10 h-5 ${bg2} top-4 left-6 transform rotate-6`}></div>
+              <div className={`${commonBox} w-6 h-8 ${bg3} top-2 left-4`}></div>
+            </>;
+          case 'Minimal':
+            return <>
+              <div className={`${commonBox} w-10 h-6 ${bg1} top-1 left-1`}></div>
+              <div className={`${commonBox} w-4 h-9 ${bg2} top-1 right-1`}></div>
+            </>;
+          case 'Overlap':
+            return <>
+              <div className={`${commonBox} w-8 h-6 ${bg1} top-1 left-1 transform -rotate-6 z-10`}></div>
+              <div className={`${commonBox} w-10 h-6 ${bg2} top-3 left-4 z-20`}></div>
+              <div className={`${commonBox} w-6 h-6 ${bg3} top-6 left-1 z-0`}></div>
+            </>;
+          case 'Grid':
+            return (
+              <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-0.5">
+                <div className={`rounded-sm ${bg1}`}></div>
+                <div className={`rounded-sm ${bg2}`}></div>
+                <div className={`rounded-sm ${bg3}`}></div>
+                <div className={`rounded-sm ${bg1}`}></div>
+              </div>
+            );
+          case 'Polaroid':
+            return <>
+              <div className={`${commonBox} w-7 h-8 p-0.5 bg-white top-1 left-2 transform -rotate-12`}>
+                <div className={`w-full h-full ${bg1}`}></div>
+              </div>
+              <div className={`${commonBox} w-7 h-8 p-0.5 bg-white top-3 left-8 transform rotate-6`}>
+                <div className={`w-full h-full ${bg2}`}></div>
+              </div>
+            </>;
+          default:
+            return null;
+        }
+      })()}
+    </div>
+  );
+};
+
+
 interface CollageControlsProps {
   selectedStyle: CollageStyle;
   onStyleChange: (style: CollageStyle) => void;
@@ -39,16 +94,26 @@ export default function CollageControls({
   disabled = false,
 }: CollageControlsProps) {
   const [activeTab, setActiveTab] = useState<Background['type']>(background.type);
-  const [prompt, setPrompt] = useState(background.type === 'generated' ? background.prompt : 'A soft, abstract watercolor texture');
+  // FIX: Use a lazy initializer for useState to allow TypeScript to correctly
+  // narrow the discriminated union type and safely access `background.prompt`.
+  const [prompt, setPrompt] = useState(() => {
+    if (background.type === 'generated') {
+        return background.prompt;
+    }
+    return 'A soft, abstract watercolor texture';
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // FIX: The dependency array was accessing `background.prompt` unsafely.
+  // By depending on the whole `background` object, the effect will correctly
+  // re-run on any change, and the type guard inside will work as expected.
   useEffect(() => {
     // Sync active tab if background type is changed externally
     setActiveTab(background.type);
     if(background.type === 'generated') {
         setPrompt(background.prompt);
     }
-  }, [background.type]);
+  }, [background]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
@@ -66,16 +131,21 @@ export default function CollageControls({
     <div className="bg-gray-800/50 rounded-lg p-4 flex flex-col gap-6">
       {/* Style Selection */}
       <div>
-        <h3 className="text-lg font-semibold text-gray-200 mb-3">1. Select Collage Style</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <h3 className="text-lg font-semibold text-gray-200 mb-3">1. Select a Template</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {STYLES.map((style) => (
-            <div key={style.id}>
-              <input type="radio" name="collage-style" id={style.id} value={style.id} checked={selectedStyle === style.id} onChange={() => onStyleChange(style.id)} className="sr-only" disabled={disabled} aria-describedby={`${style.id}-description`} />
-              <label htmlFor={style.id} className={`flex flex-col text-center p-3 border-2 rounded-md h-full transition-all duration-200 ${selectedStyle === style.id ? 'border-indigo-500 bg-indigo-900/50 text-white' : 'border-gray-600 bg-gray-700/50 text-gray-400'} ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-indigo-400 hover:bg-indigo-900/30'}`}>
-                <span className="font-bold text-base">{style.label}</span>
-                <span id={`${style.id}-description`} className="text-xs mt-1">{style.description}</span>
-              </label>
-            </div>
+            <button
+              key={style.id}
+              onClick={() => onStyleChange(style.id)}
+              disabled={disabled}
+              aria-pressed={selectedStyle === style.id}
+              aria-label={`Select ${style.label} template`}
+              className={`flex flex-col items-center justify-start text-center p-3 border-2 rounded-md h-full transition-all duration-200 ${selectedStyle === style.id ? 'border-indigo-500 bg-indigo-900/50 text-white' : 'border-gray-600 bg-gray-700/50 text-gray-400'} ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-indigo-400 hover:bg-indigo-900/30'}`}
+            >
+              <TemplatePreview style={style.id} />
+              <span className="font-bold text-sm leading-tight">{style.label}</span>
+              <span className="text-xs mt-1 text-gray-500">{style.description}</span>
+            </button>
           ))}
         </div>
       </div>
